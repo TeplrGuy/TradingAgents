@@ -10,6 +10,8 @@ from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
 
+from tradingagents.llm.local import create_local_llm
+
 from langgraph.prebuilt import ToolNode
 
 from tradingagents.agents import *
@@ -58,17 +60,60 @@ class TradingAgentsGraph:
         )
 
         # Initialize LLMs
-        if self.config["llm_provider"].lower() == "openai" or self.config["llm_provider"] == "ollama" or self.config["llm_provider"] == "openrouter":
-            self.deep_thinking_llm = ChatOpenAI(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
-            self.quick_thinking_llm = ChatOpenAI(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
-        elif self.config["llm_provider"].lower() == "anthropic":
-            self.deep_thinking_llm = ChatAnthropic(model=self.config["deep_think_llm"], base_url=self.config["backend_url"])
-            self.quick_thinking_llm = ChatAnthropic(model=self.config["quick_think_llm"], base_url=self.config["backend_url"])
-        elif self.config["llm_provider"].lower() == "google":
-            self.deep_thinking_llm = ChatGoogleGenerativeAI(model=self.config["deep_think_llm"])
-            self.quick_thinking_llm = ChatGoogleGenerativeAI(model=self.config["quick_think_llm"])
+        provider = self.config["llm_provider"].lower()
+        
+        if provider in ["openai", "ollama", "openrouter"]:
+            self.deep_thinking_llm = ChatOpenAI(
+                model=self.config["deep_think_llm"], 
+                base_url=self.config["backend_url"]
+            )
+            self.quick_thinking_llm = ChatOpenAI(
+                model=self.config["quick_think_llm"], 
+                base_url=self.config["backend_url"]
+            )
+        elif provider == "anthropic":
+            self.deep_thinking_llm = ChatAnthropic(
+                model=self.config["deep_think_llm"], 
+                base_url=self.config["backend_url"]
+            )
+            self.quick_thinking_llm = ChatAnthropic(
+                model=self.config["quick_think_llm"], 
+                base_url=self.config["backend_url"]
+            )
+        elif provider == "google":
+            self.deep_thinking_llm = ChatGoogleGenerativeAI(
+                model=self.config["deep_think_llm"]
+            )
+            self.quick_thinking_llm = ChatGoogleGenerativeAI(
+                model=self.config["quick_think_llm"]
+            )
+        elif provider in ["lm studio", "text generation webui", "custom local api", "direct inference"]:
+            # Local LLM providers
+            local_config = self.config.get("local_llm_config", {})
+            
+            # Create deep thinking LLM
+            deep_config = local_config.copy()
+            deep_config.update({
+                "model_name": self.config["deep_think_llm"],
+                "base_url": local_config.get("base_url", self.config["backend_url"])
+            })
+            self.deep_thinking_llm = create_local_llm(
+                provider=provider,
+                **deep_config
+            )
+            
+            # Create quick thinking LLM  
+            quick_config = local_config.copy()
+            quick_config.update({
+                "model_name": self.config["quick_think_llm"],
+                "base_url": local_config.get("base_url", self.config["backend_url"])
+            })
+            self.quick_thinking_llm = create_local_llm(
+                provider=provider,
+                **quick_config
+            )
         else:
-            raise ValueError(f"Unsupported LLM provider: {self.config['llm_provider']}")
+            raise ValueError(f"Unsupported LLM provider: {provider}")
         
         self.toolkit = Toolkit(config=self.config)
 

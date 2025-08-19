@@ -192,6 +192,127 @@ print(decision)
 
 You can view the full list of configurations in `tradingagents/default_config.py`.
 
+## Local LLM Support
+
+TradingAgents supports various local LLM providers for cost-effective operations and reduced dependence on external APIs. The framework provides pluggable adapters for different local LLM setups.
+
+### Supported Local Providers
+
+#### API-Based Local LLMs
+- **LM Studio**: Local model serving with OpenAI-compatible API
+- **Text Generation WebUI**: Popular interface for running local LLMs
+- **Ollama**: Lightweight local model runner (already supported)
+- **Custom Local API**: Any OpenAI-compatible local API
+
+#### Direct Inference
+- **Transformers**: Direct model loading with Hugging Face transformers
+- **Llama.cpp**: Efficient C++ inference engine for Llama models
+
+### Configuration Examples
+
+#### LM Studio Setup
+```python
+from tradingagents.graph.trading_graph import TradingAgentsGraph
+from tradingagents.default_config import DEFAULT_CONFIG
+
+config = DEFAULT_CONFIG.copy()
+config["llm_provider"] = "lm studio"
+config["backend_url"] = "http://localhost:1234/v1"
+config["deep_think_llm"] = "llama-3.1-8b-instruct"
+config["quick_think_llm"] = "llama-3.1-8b-instruct"
+config["local_llm_config"] = {
+    "base_url": "http://localhost:1234/v1",
+    "timeout": 60,
+    "api_key": "optional-key"  # if needed
+}
+
+ta = TradingAgentsGraph(debug=True, config=config)
+_, decision = ta.propagate("NVDA", "2024-05-10")
+```
+
+#### Direct Inference Setup
+```python
+config = DEFAULT_CONFIG.copy()
+config["llm_provider"] = "direct inference"
+config["deep_think_llm"] = "transformers"
+config["quick_think_llm"] = "transformers"
+config["local_llm_config"] = {
+    "model_path": "/path/to/your/model",
+    "model_type": "transformers",  # or "llama_cpp"
+    "device": "auto"  # "cpu", "cuda", or "auto"
+}
+
+ta = TradingAgentsGraph(debug=True, config=config)
+```
+
+#### Text Generation WebUI Setup
+```python
+config = DEFAULT_CONFIG.copy()
+config["llm_provider"] = "text generation webui"
+config["backend_url"] = "http://localhost:5000/v1"
+config["deep_think_llm"] = "local-model"
+config["quick_think_llm"] = "local-model"
+config["local_llm_config"] = {
+    "base_url": "http://localhost:5000/v1",
+    "timeout": 120
+}
+
+ta = TradingAgentsGraph(debug=True, config=config)
+```
+
+### CLI Usage with Local LLMs
+
+When using the CLI, simply select your local LLM provider from the interactive menu:
+
+```bash
+python main.py analyze
+```
+
+The CLI will guide you through:
+1. Provider selection (including local options)
+2. Model selection for your chosen provider
+3. Additional configuration (URLs, paths, etc.)
+4. Analysis setup and execution
+
+### Requirements for Local LLMs
+
+#### For API-Based Providers
+- Running local LLM server (LM Studio, Text Generation WebUI, etc.)
+- Network access to the local server
+- Optional: API authentication if required
+
+#### For Direct Inference
+- **Transformers**: `pip install transformers torch`
+- **Llama.cpp**: `pip install llama-cpp-python`
+- Sufficient system resources (RAM/VRAM) for model loading
+- Model files downloaded locally
+
+### Adding New Local Providers
+
+To add support for a new local LLM provider:
+
+1. Extend the provider options in `cli/utils.py`:
+```python
+BASE_URLS = [
+    # ... existing providers
+    ("Your Provider", "http://localhost:PORT/v1"),
+]
+```
+
+2. Add model options for your provider:
+```python
+DEEP_AGENT_OPTIONS = {
+    # ... existing providers
+    "your provider": [
+        ("Model Name", "model-id"),
+    ]
+}
+```
+
+3. The local LLM adapters will automatically handle the new provider if it's API-compatible.
+
+For providers requiring special handling, extend the `create_local_llm()` function in `tradingagents/llm/local.py`.
+
 ## Contributing
 
 We welcome contributions from the community! Whether it's fixing a bug, improving documentation, or suggesting a new feature, your input helps make this project better. If you are interested in this line of research, please consider joining our open-source financial AI research community [Tauric Research](https://tauric.ai/).
