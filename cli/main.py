@@ -471,6 +471,16 @@ def get_user_selections():
     )
     selected_llm_provider, backend_url = select_llm_provider()
     
+    # Get additional config for local LLMs
+    local_llm_config = {}
+    if selected_llm_provider.lower() in ["lm studio", "text generation webui", "custom local api", "direct inference"]:
+        console.print(
+            create_question_box(
+                "Local LLM Configuration", "Configure your local LLM settings"
+            )
+        )
+        local_llm_config = get_local_llm_config(selected_llm_provider)
+    
     # Step 6: Thinking agents
     console.print(
         create_question_box(
@@ -489,6 +499,7 @@ def get_user_selections():
         "backend_url": backend_url,
         "shallow_thinker": selected_shallow_thinker,
         "deep_thinker": selected_deep_thinker,
+        "local_llm_config": local_llm_config,
     }
 
 
@@ -743,6 +754,7 @@ def run_analysis():
     config["deep_think_llm"] = selections["deep_thinker"]
     config["backend_url"] = selections["backend_url"]
     config["llm_provider"] = selections["llm_provider"].lower()
+    config["local_llm_config"] = selections.get("local_llm_config", {})
 
     # Initialize the graph
     graph = TradingAgentsGraph(

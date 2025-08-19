@@ -152,6 +152,24 @@ def select_shallow_thinking_agent(provider) -> str:
         "ollama": [
             ("llama3.1 local", "llama3.1"),
             ("llama3.2 local", "llama3.2"),
+        ],
+        "lm studio": [
+            ("Local Model", "local-model"),
+            ("Llama 3.1 8B", "llama-3.1-8b-instruct"),
+            ("Llama 3.2 3B", "llama-3.2-3b-instruct"),
+            ("Mistral 7B", "mistral-7b-instruct"),
+        ],
+        "text generation webui": [
+            ("Local Model", "local-model"),
+            ("Custom Model", "custom-model"),
+        ],
+        "custom local api": [
+            ("Local Model", "local-model"),
+            ("Custom Model", "custom-model"),
+        ],
+        "direct inference": [
+            ("Transformers Model", "transformers"),
+            ("Llama.cpp Model", "llama_cpp"),
         ]
     }
 
@@ -214,6 +232,24 @@ def select_deep_thinking_agent(provider) -> str:
         "ollama": [
             ("llama3.1 local", "llama3.1"),
             ("qwen3", "qwen3"),
+        ],
+        "lm studio": [
+            ("Local Model", "local-model"),
+            ("Llama 3.1 8B", "llama-3.1-8b-instruct"),
+            ("Llama 3.2 3B", "llama-3.2-3b-instruct"),
+            ("Mistral 7B", "mistral-7b-instruct"),
+        ],
+        "text generation webui": [
+            ("Local Model", "local-model"),
+            ("Custom Model", "custom-model"),
+        ],
+        "custom local api": [
+            ("Local Model", "local-model"),
+            ("Custom Model", "custom-model"),
+        ],
+        "direct inference": [
+            ("Transformers Model", "transformers"),
+            ("Llama.cpp Model", "llama_cpp"),
         ]
     }
     
@@ -240,14 +276,18 @@ def select_deep_thinking_agent(provider) -> str:
     return choice
 
 def select_llm_provider() -> tuple[str, str]:
-    """Select the OpenAI api url using interactive selection."""
-    # Define OpenAI api options with their corresponding endpoints
+    """Select the LLM provider using interactive selection."""
+    # Define LLM provider options with their corresponding endpoints
     BASE_URLS = [
         ("OpenAI", "https://api.openai.com/v1"),
         ("Anthropic", "https://api.anthropic.com/"),
         ("Google", "https://generativelanguage.googleapis.com/v1"),
         ("Openrouter", "https://openrouter.ai/api/v1"),
-        ("Ollama", "http://localhost:11434/v1"),        
+        ("Ollama", "http://localhost:11434/v1"),
+        ("LM Studio", "http://localhost:1234/v1"),
+        ("Text Generation WebUI", "http://localhost:5000/v1"),
+        ("Custom Local API", "http://localhost:8000/v1"),
+        ("Direct Inference", "local://direct"),
     ]
     
     choice = questionary.select(
@@ -274,3 +314,65 @@ def select_llm_provider() -> tuple[str, str]:
     print(f"You selected: {display_name}\tURL: {url}")
     
     return display_name, url
+
+
+def get_local_llm_config(provider: str) -> dict:
+    """Get additional configuration for local LLM providers."""
+    config = {}
+    
+    if provider.lower() in ["lm studio", "text generation webui", "custom local api"]:
+        # Get custom URL if needed
+        if provider.lower() == "custom local api":
+            custom_url = questionary.text(
+                "Enter the base URL for your local API:",
+                default="http://localhost:8000/v1",
+                validate=lambda x: len(x.strip()) > 0 or "Please enter a valid URL.",
+            ).ask()
+            config["base_url"] = custom_url
+        
+        # Get API key if needed
+        api_key = questionary.text(
+            "Enter API key (optional, press Enter to skip):",
+            default="",
+        ).ask()
+        if api_key.strip():
+            config["api_key"] = api_key
+            
+        # Get additional settings
+        timeout = questionary.text(
+            "Enter request timeout in seconds:",
+            default="60",
+            validate=lambda x: x.isdigit() or "Please enter a valid number.",
+        ).ask()
+        config["timeout"] = int(timeout)
+        
+    elif provider.lower() == "direct inference":
+        # Get model path
+        model_path = questionary.text(
+            "Enter the path to your model files:",
+            validate=lambda x: len(x.strip()) > 0 or "Please enter a valid path.",
+        ).ask()
+        config["model_path"] = model_path
+        
+        # Get model type
+        model_type = questionary.select(
+            "Select your model type:",
+            choices=[
+                ("Transformers (Hugging Face)", "transformers"),
+                ("Llama.cpp", "llama_cpp"),
+            ],
+        ).ask()
+        config["model_type"] = model_type
+        
+        # Get device
+        device = questionary.select(
+            "Select device:",
+            choices=[
+                ("Auto (recommended)", "auto"),
+                ("CPU", "cpu"),
+                ("CUDA (GPU)", "cuda"),
+            ],
+        ).ask()
+        config["device"] = device
+    
+    return config
